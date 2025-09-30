@@ -1,0 +1,138 @@
+# ===================================
+# Environment & Secrets - NEVER COMMIT
+# ===================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# Google Cloud & API credentials
+credentials/
+*.json
+!package.json
+!package-lock.json
+service-account*.json
+google-credentials*.json
+
+# ===================================
+# Python
+# ===================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# Distribution / packaging
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PIPFILE.lock
+
+# Testing
+.pytest_cache/
+.coverage
+.tox/
+htmlcov/
+
+# ===================================
+# IDE & Editors
+# ===================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# ===================================
+# Generated Code & Outputs
+# ===================================
+output/
+output_test/*.py
+output_test/*.js
+output_test/*.ts
+output_test/*.txt
+output_test/*.java
+output_test/*.go
+output_test/*.cpp
+output_test/*.c
+!output_test/README.md
+!output_test/.info
+
+generated_code/
+*.generated.*
+
+# ===================================
+# Logs
+# ===================================
+logs/*.log
+logs/*.json
+!logs/.gitkeep
+*.log
+*.log.*
+
+# ===================================
+# Operating System
+# ===================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# ===================================
+# Temporary & Cache
+# ===================================
+*.tmp
+*.temp
+.cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# ===================================
+# Project Specific
+# ===================================
+# Old/backup files (to clean up)
+*.backup
+*.bak
+*.old

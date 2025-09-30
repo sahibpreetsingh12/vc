@@ -1,0 +1,15 @@
+🎙️ VOICE CURSOR - OUTPUT FOLDER
+
+📁 Location: voice-cursor/output_test/
+
+📝 All generated code is saved here automatically!
+
+🎯 File naming pattern:
+   [command_keywords]_[timestamp].py
+
+💡 Example:
+   Voice: "Create a function to fetch weather data"
+   File:  fetch_weather_data_20250930_145530.py
+
+✅ To view your files: ls output_test/
+📖 Full details: See FILE_SAVING.md

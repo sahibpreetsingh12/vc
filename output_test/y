@@ -1,0 +1,6 @@
+1. Import the requests library
+2. Define function signature: fetch_weather(city: str)
+3. Construct API URL with city parameter
+4. Make GET request to weather API
+5. Parse JSON response
+6. Return weather data dictionary
