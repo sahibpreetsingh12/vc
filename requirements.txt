@@ -7,10 +7,15 @@ google-cloud-aiplatform==1.38.0
 google-generativeai>=0.8.0
 groq>=0.30.0
 
+# Web Framework
+Flask==3.0.0
+Flask-SocketIO==5.3.5
+
 # Utilities
 requests==2.31.0
 pydantic==2.5.0
 rich==13.7.0  # For beautiful terminal output
+speech_recognition==3.10.0  # For voice input
 
 # Code formatting/validation
 black==23.12.1
