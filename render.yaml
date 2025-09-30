@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: voice-cursor-ide
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python web_ide.py
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_MODEL
+        value: gemini-2.0-flash-exp
+      - key: STT_PROVIDER
+        value: google
+      - key: PORT
+        value: 8081

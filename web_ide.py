@@ -534,7 +534,9 @@ def handle_disconnect():
 
 
 if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 8081))
     print("🎙️ Voice First IDE Starting...")
     print(f"📁 Workspace: {WORKSPACE_DIR}")
-    print(f"🌐 Open http://localhost:8081 in your browser")
-    socketio.run(app, debug=True, host='0.0.0.0', port=8081)
+    print(f"🌐 Open http://localhost:{port} in your browser")
+    socketio.run(app, debug=False, host='0.0.0.0', port=port)
