@@ -1,0 +1,94 @@
+{
+  "id": "20250930_152909_171825",
+  "query": "can you edit the last file and make sure that it has a combination of decision trees random forest and XT boost all in one file using a practical example to show how things are working",
+  "timestamp": "2025-09-30T15:29:09.171843",
+  "agents": [
+    {
+      "name": "Speech Agent",
+      "stage": "speech",
+      "tools_used": [
+        "Google Cloud STT"
+      ],
+      "tokens": 0,
+      "latency_ms": 0.17,
+      "success": true,
+      "timestamp": "2025-09-30T15:29:09.172270"
+    },
+    {
+      "name": "Security Agent",
+      "stage": "security",
+      "tools_used": [
+        "Command Sanitizer"
+      ],
+      "tokens": 0,
+      "latency_ms": 1.31,
+      "success": true,
+      "timestamp": "2025-09-30T15:29:09.173705"
+    },
+    {
+      "name": "Reasoning Agent",
+      "stage": "reasoning",
+      "tools_used": [
+        "Gemini 2.0 Flash"
+      ],
+      "tokens": 523,
+      "latency_ms": 3504.43,
+      "success": true,
+      "timestamp": "2025-09-30T15:29:12.678263"
+    },
+    {
+      "name": "Coder Agent",
+      "stage": "coding",
+      "tools_used": [
+        "Gemini 2.0 Flash"
+      ],
+      "tokens": 1111,
+      "latency_ms": 7431.14,
+      "success": true,
+      "timestamp": "2025-09-30T15:29:20.109869"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Google Cloud STT",
+      "order": 1,
+      "input_length": 184,
+      "output_length": 184,
+      "tokens": 0,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:29:09.172242"
+    },
+    {
+      "name": "Command Sanitizer",
+      "order": 2,
+      "input_length": 184,
+      "output_length": 184,
+      "tokens": 0,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:29:09.173675"
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "order": 3,
+      "input_length": 184,
+      "output_length": 2095,
+      "tokens": 523,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:29:12.678183"
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "order": 4,
+      "input_length": 2095,
+      "output_length": 4445,
+      "tokens": 1111,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:29:20.109434"
+    }
+  ],
+  "total_tokens": 1634,
+  "total_cost_usd": 0.0,
+  "total_latency_ms": 10943.51,
+  "success": true,
+  "error": null
+}

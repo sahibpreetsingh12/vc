@@ -1,0 +1,94 @@
+{
+  "id": "20250930_151949_605517",
+  "query": "🎤 change the current files a random Forest implementation to XC boost make sure that the XD boost is 10 different trees to start with it...",
+  "timestamp": "2025-09-30T15:19:49.605545",
+  "agents": [
+    {
+      "name": "Speech Agent",
+      "stage": "speech",
+      "tools_used": [
+        "Google Cloud STT"
+      ],
+      "tokens": 0,
+      "latency_ms": 1.57,
+      "success": true,
+      "timestamp": "2025-09-30T15:19:49.608960"
+    },
+    {
+      "name": "Security Agent",
+      "stage": "security",
+      "tools_used": [
+        "Command Sanitizer"
+      ],
+      "tokens": 0,
+      "latency_ms": 1.37,
+      "success": true,
+      "timestamp": "2025-09-30T15:19:49.610594"
+    },
+    {
+      "name": "Reasoning Agent",
+      "stage": "reasoning",
+      "tools_used": [
+        "Gemini 2.0 Flash"
+      ],
+      "tokens": 517,
+      "latency_ms": 4109.85,
+      "success": true,
+      "timestamp": "2025-09-30T15:19:53.720598"
+    },
+    {
+      "name": "Coder Agent",
+      "stage": "coding",
+      "tools_used": [
+        "Gemini 2.0 Flash"
+      ],
+      "tokens": 942,
+      "latency_ms": 5900.08,
+      "success": true,
+      "timestamp": "2025-09-30T15:19:59.622864"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Google Cloud STT",
+      "order": 1,
+      "input_length": 139,
+      "output_length": 139,
+      "tokens": 0,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:19:49.608898"
+    },
+    {
+      "name": "Command Sanitizer",
+      "order": 2,
+      "input_length": 139,
+      "output_length": 139,
+      "tokens": 0,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:19:49.610560"
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "order": 3,
+      "input_length": 139,
+      "output_length": 2068,
+      "tokens": 517,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:19:53.720476"
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "order": 4,
+      "input_length": 2068,
+      "output_length": 3770,
+      "tokens": 942,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:19:59.622769"
+    }
+  ],
+  "total_tokens": 1459,
+  "total_cost_usd": 0.0,
+  "total_latency_ms": 10021.81,
+  "success": true,
+  "error": null
+}

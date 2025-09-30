@@ -1,39 +1,9 @@
-# ===================================
-# Environment & Secrets - NEVER COMMIT
-# ===================================
-.env
-.env.local
-.env.*.local
-*.key
-*.pem
-
-# Google Cloud & API credentials
-credentials/
-*.json
-!package.json
-!package-lock.json
-service-account*.json
-google-credentials*.json
-
-# ===================================
 # Python
-# ===================================
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-*.pyc
-
-# Virtual environments
-venv/
-env/
-ENV/
-env.bak/
-venv.bak/
-.venv/
-
-# Distribution / packaging
 build/
 develop-eggs/
 dist/
@@ -49,90 +19,63 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-PIPFILE.lock
 
-# Testing
-.pytest_cache/
-.coverage
-.tox/
-htmlcov/
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
 
-# ===================================
-# IDE & Editors
-# ===================================
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.project
-.pydevproject
-.settings/
-*.sublime-project
-*.sublime-workspace
 
-# ===================================
-# Generated Code & Outputs
-# ===================================
-output/
-output_test/*.py
-output_test/*.js
-output_test/*.ts
-output_test/*.txt
-output_test/*.java
-output_test/*.go
-output_test/*.cpp
-output_test/*.c
-!output_test/README.md
-!output_test/.info
+# Environment variables
+.env
+.env.local
 
-generated_code/
-*.generated.*
-
-# ===================================
-# Logs
-# ===================================
-logs/*.log
-logs/*.json
-!logs/.gitkeep
-*.log
-*.log.*
-
-# ===================================
-# Operating System
-# ===================================
 # macOS
 .DS_Store
 .AppleDouble
 .LSOverride
-Icon
 ._*
 
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
+# Logs
+logs/*.log
+*.log
+server.log
 
-# Linux
-*~
-.directory
-.Trash-*
+# Test outputs
+output_test/*.py
+output_test/*.txt
 
-# ===================================
-# Temporary & Cache
-# ===================================
+# Keep .gitkeep files
+!.gitkeep
+
+# Credentials (use .env instead)
+credentials/
+*.json.key
+*.pem
+
+# Temporary files
 *.tmp
-*.temp
-.cache/
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# ===================================
-# Project Specific
-# ===================================
-# Old/backup files (to clean up)
-*.backup
 *.bak
-*.old
+*.swp
+*.swo
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# pytest
+.pytest_cache/
+.tox/
+
+# Documentation build
+docs/_build/

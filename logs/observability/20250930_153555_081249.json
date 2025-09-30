@@ -1,0 +1,94 @@
+{
+  "id": "20250930_153555_081249",
+  "query": "do you know about  how to make",
+  "timestamp": "2025-09-30T15:35:55.081262",
+  "agents": [
+    {
+      "name": "Speech Agent",
+      "stage": "speech",
+      "tools_used": [
+        "Google Cloud STT"
+      ],
+      "tokens": 0,
+      "latency_ms": 0.15,
+      "success": true,
+      "timestamp": "2025-09-30T15:35:55.081679"
+    },
+    {
+      "name": "Security Agent",
+      "stage": "security",
+      "tools_used": [
+        "Command Sanitizer"
+      ],
+      "tokens": 0,
+      "latency_ms": 0.89,
+      "success": true,
+      "timestamp": "2025-09-30T15:35:55.082684"
+    },
+    {
+      "name": "Reasoning Agent",
+      "stage": "reasoning",
+      "tools_used": [
+        "Gemini 2.0 Flash"
+      ],
+      "tokens": 398,
+      "latency_ms": 3708.61,
+      "success": true,
+      "timestamp": "2025-09-30T15:35:58.791458"
+    },
+    {
+      "name": "Coder Agent",
+      "stage": "coding",
+      "tools_used": [
+        "Gemini 2.0 Flash"
+      ],
+      "tokens": 1789,
+      "latency_ms": 11366.63,
+      "success": true,
+      "timestamp": "2025-09-30T15:36:10.158423"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Google Cloud STT",
+      "order": 1,
+      "input_length": 30,
+      "output_length": 30,
+      "tokens": 0,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:35:55.081658"
+    },
+    {
+      "name": "Command Sanitizer",
+      "order": 2,
+      "input_length": 30,
+      "output_length": 29,
+      "tokens": 0,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:35:55.082669"
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "order": 3,
+      "input_length": 29,
+      "output_length": 1595,
+      "tokens": 398,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:35:58.791410"
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "order": 4,
+      "input_length": 1595,
+      "output_length": 7159,
+      "tokens": 1789,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:36:10.158327"
+    }
+  ],
+  "total_tokens": 2187,
+  "total_cost_usd": 0.0,
+  "total_latency_ms": 15082.45,
+  "success": true,
+  "error": null
+}

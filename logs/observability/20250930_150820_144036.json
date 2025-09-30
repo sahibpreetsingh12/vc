@@ -1,0 +1,94 @@
+{
+  "id": "20250930_150820_144036",
+  "query": "give me a new example of a random forest with in an oops format with at least five trees",
+  "timestamp": "2025-09-30T15:08:20.144077",
+  "agents": [
+    {
+      "name": "Speech Agent",
+      "stage": "speech",
+      "tools_used": [
+        "Google Cloud STT"
+      ],
+      "tokens": 0,
+      "latency_ms": 0.22,
+      "success": true,
+      "timestamp": "2025-09-30T15:08:20.144597"
+    },
+    {
+      "name": "Security Agent",
+      "stage": "security",
+      "tools_used": [
+        "Command Sanitizer"
+      ],
+      "tokens": 0,
+      "latency_ms": 1.01,
+      "success": true,
+      "timestamp": "2025-09-30T15:08:20.145783"
+    },
+    {
+      "name": "Reasoning Agent",
+      "stage": "reasoning",
+      "tools_used": [
+        "Gemini 2.0 Flash"
+      ],
+      "tokens": 303,
+      "latency_ms": 4208.73,
+      "success": true,
+      "timestamp": "2025-09-30T15:08:24.354596"
+    },
+    {
+      "name": "Coder Agent",
+      "stage": "coding",
+      "tools_used": [
+        "Gemini 2.0 Flash"
+      ],
+      "tokens": 946,
+      "latency_ms": 6566.6,
+      "success": true,
+      "timestamp": "2025-09-30T15:08:30.921716"
+    }
+  ],
+  "tools": [
+    {
+      "name": "Google Cloud STT",
+      "order": 1,
+      "input_length": 88,
+      "output_length": 88,
+      "tokens": 0,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:08:20.144557"
+    },
+    {
+      "name": "Command Sanitizer",
+      "order": 2,
+      "input_length": 88,
+      "output_length": 88,
+      "tokens": 0,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:08:20.145764"
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "order": 3,
+      "input_length": 88,
+      "output_length": 1214,
+      "tokens": 303,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:08:24.354505"
+    },
+    {
+      "name": "Gemini 2.0 Flash",
+      "order": 4,
+      "input_length": 1214,
+      "output_length": 3786,
+      "tokens": 946,
+      "latency_ms": 0,
+      "timestamp": "2025-09-30T15:08:30.921632"
+    }
+  ],
+  "total_tokens": 1249,
+  "total_cost_usd": 0.0,
+  "total_latency_ms": 10780.58,
+  "success": true,
+  "error": null
+}
