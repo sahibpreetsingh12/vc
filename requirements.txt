@@ -15,7 +15,7 @@ Flask-SocketIO==5.3.5
 requests==2.31.0
 pydantic==2.5.0
 rich==13.7.0  # For beautiful terminal output
-speech_recognition==3.10.0  # For voice input
+SpeechRecognition==3.10.4  # For voice input
 
 # Code formatting/validation
 black==23.12.1
