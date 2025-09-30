@@ -12,8 +12,8 @@ class GeminiLLMTool(Tool):
     
     def __init__(self, model: str = "gemini-2.0-flash-exp"):
         super().__init__(
-            name="Gemini LLM",
-            description="Google Gemini language model"
+            name="Gemini 2.0 Flash",
+            description="Google Gemini 2.0 Flash (Experimental)"
         )
         self.model = model
         self.client = None

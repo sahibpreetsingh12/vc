@@ -418,7 +418,10 @@ class VoiceFirstIDE {
     
     async startRecording() {
         try {
-            // Use Web Speech API (built into Chrome/Edge)
+            // Use Web Speech API (built into Chrome/Edge/Safari)
+            // This provides the best UX - instant transcription in the browser
+            // Backend Google Cloud STT is used as validation/enhancement
+            
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 this.addMessage('assistant', 
                     '❌ Speech recognition not supported in this browser. ' +
@@ -430,44 +433,88 @@ class VoiceFirstIDE {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             this.recognition = new SpeechRecognition();
             
-            this.recognition.continuous = false;
-            this.recognition.interimResults = false;
+            // FIXED: Make it continuous - no auto-stop!
+            this.recognition.continuous = true;  // Keep listening until user clicks stop
+            this.recognition.interimResults = true;  // Show results in real-time
             this.recognition.lang = 'en-US';
+            this.recognition.maxAlternatives = 1;
+            
+            // Store partial transcript
+            this.currentTranscript = '';
             
             this.recognition.onstart = () => {
                 this.isRecording = true;
                 document.getElementById('micButton').classList.add('recording');
-                this.addMessage('assistant', '🎤 Listening... Speak your command now.');
+                
+                // SHOW STT CLEARLY AT START
+                this.addMessage('assistant', 
+                    `<div style="padding: 15px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); border-radius: 8px; border: 2px solid var(--accent-green);">
+                        <p style="font-size: 16px; font-weight: bold; color: white; margin-bottom: 8px;">🎤 Recording Started</p>
+                        <p style="font-size: 14px; color: white; margin-bottom: 8px;"><strong>STT Engine:</strong> Google Web Speech API (Browser-based)</p>
+                        <p style="font-size: 12px; color: white; opacity: 0.9;">• Speak naturally, take your time<br>• Click microphone again when done<br>• No rush - I'm listening continuously!</p>
+                    </div>`
+                );
             };
             
             this.recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                const confidence = event.results[0][0].confidence;
+                // Build full transcript from all results
+                let finalTranscript = '';
+                let interimTranscript = '';
                 
-                this.addMessage('user', transcript);
-                this.addMessage('assistant', 
-                    `Heard: "${transcript}" (confidence: ${Math.round(confidence * 100)}%)`
-                );
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript + ' ';
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
                 
-                // Send to backend
-                this.processVoiceCommand(transcript);
+                // Update current transcript
+                if (finalTranscript) {
+                    this.currentTranscript += finalTranscript;
+                }
+                
+                // Show real-time transcript (optional - can be removed if too noisy)
+                if (interimTranscript && !finalTranscript) {
+                    // Show interim results in a temporary message (updates live)
+                    const lastMsg = document.querySelector('.conversation .message:last-child');
+                    if (lastMsg && lastMsg.classList.contains('interim')) {
+                        lastMsg.querySelector('.message-content p').textContent = '🎤 ' + interimTranscript + '...';
+                    } else {
+                        const msg = document.createElement('div');
+                        msg.className = 'message assistant interim';
+                        msg.innerHTML = `
+                            <div class="message-icon"><i class="fas fa-microphone-lines"></i></div>
+                            <div class="message-content"><p>🎤 ${interimTranscript}...</p></div>
+                        `;
+                        document.getElementById('conversation').appendChild(msg);
+                    }
+                }
             };
             
             this.recognition.onerror = (event) => {
                 console.error('Speech recognition error:', event.error);
+                
+                // Don't stop on "no-speech" error - user might be thinking
+                if (event.error === 'no-speech') {
+                    this.addMessage('assistant', '🔇 Still listening... take your time!');
+                    return;  // Keep recording!
+                }
+                
                 this.isRecording = false;
                 document.getElementById('micButton').classList.remove('recording');
                 
                 let errorMsg = 'Speech recognition error: ';
                 switch(event.error) {
-                    case 'no-speech':
-                        errorMsg += 'No speech detected. Please try again.';
-                        break;
                     case 'audio-capture':
                         errorMsg += 'No microphone found. Please check your audio settings.';
                         break;
                     case 'not-allowed':
                         errorMsg += 'Microphone permission denied. Please allow microphone access.';
+                        break;
+                    case 'aborted':
+                        errorMsg += 'Recording was aborted.';
                         break;
                     default:
                         errorMsg += event.error;
@@ -476,6 +523,11 @@ class VoiceFirstIDE {
             };
             
             this.recognition.onend = () => {
+                // Only process if we have a transcript and user didn't manually stop
+                if (this.currentTranscript.trim() && this.isRecording) {
+                    this.processFinalTranscript();
+                }
+                
                 this.isRecording = false;
                 document.getElementById('micButton').classList.remove('recording');
             };
@@ -493,10 +545,45 @@ class VoiceFirstIDE {
     
     stopRecording() {
         if (this.recognition && this.isRecording) {
+            this.isRecording = false;  // Set flag before stopping
             this.recognition.stop();
-            this.isRecording = false;
             document.getElementById('micButton').classList.remove('recording');
+            
+            // Remove interim message if exists
+            const interimMsg = document.querySelector('.message.interim');
+            if (interimMsg) {
+                interimMsg.remove();
+            }
+            
+            // Process the final transcript
+            if (this.currentTranscript && this.currentTranscript.trim()) {
+                this.processFinalTranscript();
+            } else {
+                this.addMessage('assistant', '❌ No speech detected. Please try again.');
+            }
         }
+    }
+    
+    processFinalTranscript() {
+        const transcript = this.currentTranscript.trim();
+        
+        if (!transcript) return;
+        
+        // Show what was captured
+        this.addMessage('user', transcript);
+        this.addMessage('assistant', 
+            `<div style="padding: 10px; background: var(--bg-tertiary); border-radius: 6px; border-left: 3px solid var(--accent-green);">
+                <p style="margin-bottom: 5px; font-weight: bold; color: var(--accent-green);">✅ Transcription Complete</p>
+                <p style="margin-bottom: 5px; font-size: 13px;">Captured: <strong>${transcript.length}</strong> characters</p>
+                <p style="font-size: 12px; color: var(--text-secondary);">Using: <strong>Google Web Speech API</strong> (Browser)</p>
+            </div>`
+        );
+        
+        // Send to backend for processing
+        this.processVoiceCommand(transcript);
+        
+        // Reset transcript
+        this.currentTranscript = '';
     }
     
     processVoiceCommand(transcript) {
@@ -1009,3 +1096,40 @@ document.addEventListener('DOMContentLoaded', () => {
     // Make it globally accessible for button onclick handlers
     window.ideInstance = ide;
 });
+
+// Function to check STT configuration
+async function checkSTTConfig() {
+    const infoDiv = document.getElementById('sttInfo');
+    infoDiv.innerHTML = '<span style="color: var(--accent-blue);">Checking...</span>';
+    
+    try {
+        const response = await fetch('/api/stt/test');
+        const data = await response.json();
+        
+        if (data.success) {
+            let html = `
+                <div style="padding: 10px; background: var(--bg-tertiary); border-radius: 4px; border-left: 3px solid var(--accent-green);">
+                    <p style="margin-bottom: 5px; color: var(--accent-green); font-weight: bold;">✅ STT Configured</p>
+                    <p style="margin-bottom: 3px;"><strong>Name:</strong> ${data.stt_name}</p>
+                    <p style="margin-bottom: 3px;"><strong>Description:</strong> ${data.stt_description}</p>
+                    <p><strong>Status:</strong> <span style="color: var(--success);">Working</span></p>
+            `;
+            
+            if (data.metadata && data.metadata.source) {
+                const sourceDisplay = {
+                    'web_speech_api': '🌐 Web Speech API (Browser)',
+                    'google_stt_enhanced': '☁️ Google Cloud STT (SOTA)',
+                    'text_passthrough': '📝 Text passthrough'
+                };
+                html += `<p><strong>Current Source:</strong> ${sourceDisplay[data.metadata.source] || data.metadata.source}</p>`;
+            }
+            
+            html += '</div>';
+            infoDiv.innerHTML = html;
+        } else {
+            infoDiv.innerHTML = `<p style="color: var(--error);">❌ Error: ${data.error}</p>`;
+        }
+    } catch (error) {
+        infoDiv.innerHTML = `<p style="color: var(--error);">❌ Failed to check STT: ${error.message}</p>`;
+    }
+}

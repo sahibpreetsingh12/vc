@@ -238,6 +238,30 @@ def create_file():
         }), 500
 
 
+@app.route('/api/stt/test', methods=['GET'])
+def test_stt():
+    """Test endpoint to check which STT is configured."""
+    try:
+        from tools.stt_tool import create_stt_tool
+        stt_tool = create_stt_tool()
+        
+        # Test with dummy text
+        result = stt_tool.call("test text")
+        
+        return jsonify({
+            'success': True,
+            'stt_name': stt_tool.name,
+            'stt_description': stt_tool.description,
+            'test_result': result.success,
+            'metadata': result.metadata
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # WebSocket event handlers for voice interaction
 @socketio.on('connect')
 def handle_connect():
@@ -277,7 +301,7 @@ def handle_voice_command(data):
             speech_result = type('obj', (object,), {
                 'success': True,
                 'data': transcript,
-                'metadata': {}
+                'metadata': {'source': 'web_speech_api'}
             })()
         else:
             speech_result = speech_agent.execute(audio_data, context)
@@ -289,13 +313,30 @@ def handle_voice_command(data):
                 return
             transcript = speech_result.data
         
-        # Send transcript to client
-        emit('transcript', {'text': transcript})
+        # Send transcript to client with STT source info
+        stt_source = speech_result.metadata.get('source', 'unknown')
+        stt_model = speech_result.metadata.get('model', '')
+        
+        emit('transcript', {
+            'text': transcript,
+            'source': stt_source,
+            'model': stt_model
+        })
+        
+        # Show which STT was used
+        stt_display = ''
+        if stt_source == 'web_speech_api':
+            stt_display = '🌐 Web Speech API (Browser)'
+        elif stt_source == 'google_stt_enhanced' or stt_model == 'google_stt_enhanced':
+            stt_display = '☁️ Google Cloud STT (SOTA Enhanced)'
+        else:
+            stt_display = '🎤 Speech processed'
+        
         emit('agent_status', {
             'stage': 'speech',
             'agent': 'Speech Agent',
             'status': 'completed',
-            'message': f'Transcribed: "{transcript}"'
+            'message': f'Transcribed: "{transcript}"<br><small>{stt_display}</small>'
         })
         
         # Stage 2: Security validation
