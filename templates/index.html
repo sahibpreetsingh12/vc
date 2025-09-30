@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice First IDE</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Monaco Editor -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/editor/editor.main.min.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-left">
+            <h1><i class="fas fa-microphone"></i> Voice First IDE</h1>
+        </div>
+        <div class="header-center">
+            <div class="workspace-path" id="workspacePath">
+                <i class="fas fa-folder"></i>
+                <span id="workspacePathText">Loading...</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Left Panel - File Explorer -->
+        <div class="panel left-panel" id="leftPanel">
+            <div class="panel-header">
+                <h3><i class="fas fa-folder-tree"></i> Explorer</h3>
+                <div class="panel-actions">
+                    <button class="icon-btn" id="refreshFiles" title="Refresh">
+                        <i class="fas fa-sync"></i>
+                    </button>
+                    <button class="icon-btn" id="newFile" title="New File">
+                        <i class="fas fa-file-circle-plus"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="file-tree" id="fileTree">
+                <div class="loading">Loading files...</div>
+            </div>
+        </div>
+
+        <!-- Resize Handle Left -->
+        <div class="resize-handle" id="resizeLeft"></div>
+
+        <!-- Center Panel - Code Editor -->
+        <div class="panel center-panel" id="centerPanel">
+            <div class="panel-header">
+                <div class="tabs" id="editorTabs">
+                    <div class="tab welcome-tab active">
+                        <i class="fas fa-house"></i>
+                        <span>Welcome</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Welcome Screen -->
+            <div class="welcome-screen" id="welcomeScreen">
+                <div class="welcome-content">
+                    <h1><i class="fas fa-microphone"></i> Voice First IDE</h1>
+                    <p class="subtitle">Develop code with your voice</p>
+                    
+                    <div class="welcome-sections">
+                        <div class="welcome-section">
+                            <h3><i class="fas fa-rocket"></i> Getting Started</h3>
+                            <ul>
+                                <li>Open a file from the explorer on the left</li>
+                                <li>Click the microphone button on the right to start voice coding</li>
+                                <li>Say commands like "Create a function to fetch data"</li>
+                                <li>Watch as AI generates code in real-time</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="welcome-section">
+                            <h3><i class="fas fa-keyboard"></i> Quick Tips</h3>
+                            <ul>
+                                <li><strong>Voice Commands:</strong> Speak naturally to create code</li>
+                                <li><strong>Edit Files:</strong> Select any file to view and edit</li>
+                                <li><strong>Save Changes:</strong> Use Ctrl+S or Cmd+S to save</li>
+                                <li><strong>Agent Pipeline:</strong> Watch the AI agents work on the right</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="welcome-section">
+                            <h3><i class="fas fa-brain"></i> AI Agents</h3>
+                            <ul>
+                                <li><strong>Speech Agent:</strong> Converts voice to text</li>
+                                <li><strong>Security Agent:</strong> Validates commands for safety</li>
+                                <li><strong>Reasoning Agent:</strong> Creates execution plan</li>
+                                <li><strong>Coder Agent:</strong> Generates production-ready code</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Code Editor Container -->
+            <div class="editor-container" id="editorContainer" style="display: none;">
+                <div id="monacoEditor"></div>
+            </div>
+        </div>
+
+        <!-- Resize Handle Right -->
+        <div class="resize-handle" id="resizeRight"></div>
+
+        <!-- Right Panel - Voice Conversation -->
+        <div class="panel right-panel" id="rightPanel">
+            <div class="panel-header">
+                <h3><i class="fas fa-comments"></i> Voice Assistant</h3>
+                <button class="icon-btn" id="clearChat" title="Clear Chat">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            
+            <!-- Agent Status -->
+            <div class="agent-status" id="agentStatus">
+                <div class="status-item" data-stage="speech">
+                    <i class="fas fa-microphone"></i>
+                    <span>Speech Agent</span>
+                    <div class="status-badge">idle</div>
+                </div>
+                <div class="status-item" data-stage="security">
+                    <i class="fas fa-shield"></i>
+                    <span>Security Agent</span>
+                    <div class="status-badge">idle</div>
+                </div>
+                <div class="status-item" data-stage="reasoning">
+                    <i class="fas fa-brain"></i>
+                    <span>Reasoning Agent</span>
+                    <div class="status-badge">idle</div>
+                </div>
+                <div class="status-item" data-stage="coding">
+                    <i class="fas fa-code"></i>
+                    <span>Coder Agent</span>
+                    <div class="status-badge">idle</div>
+                </div>
+            </div>
+            
+            <!-- Conversation Area -->
+            <div class="conversation" id="conversation">
+                <div class="message assistant">
+                    <div class="message-icon">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <div class="message-content">
+                        <p>Hello! I'm your Voice First IDE assistant. Click the microphone below and speak your coding request, or type it directly.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Input Area -->
+            <div class="input-area">
+                <div class="input-container">
+                    <input type="text" id="textInput" placeholder="Type your command or click mic to speak...">
+                    <button class="icon-btn" id="sendText" title="Send">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <button class="mic-button" id="micButton" title="Click to speak">
+                    <i class="fas fa-microphone"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
