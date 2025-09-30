@@ -103,6 +103,39 @@ body {
     50% { opacity: 0.5; }
 }
 
+.btn-observability {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    background: linear-gradient(135deg, #4318FF 0%, #7551FF 100%);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(67, 24, 255, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn-observability:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(67, 24, 255, 0.5);
+    background: linear-gradient(135deg, #5028FF 0%, #8661FF 100%);
+}
+
+.btn-observability:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 12px rgba(67, 24, 255, 0.3);
+}
+
+.btn-observability i {
+    font-size: 15px;
+}
+
 /* Main Container */
 .container {
     height: calc(100vh - var(--header-height));

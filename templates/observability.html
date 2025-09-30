@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Observability Dashboard - Voice First IDE</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/observability.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1><i class="fas fa-chart-line"></i> Observability Dashboard</h1>
+                <div class="header-actions">
+                    <button class="btn-refresh" id="refreshBtn">
+                        <i class="fas fa-sync"></i> Refresh
+                    </button>
+                    <button class="btn-back" onclick="window.close()">
+                        <i class="fas fa-arrow-left"></i> Back to IDE
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Summary Stats -->
+        <section class="summary-section">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #4318FF 0%, #7551FF 100%);">
+                    <i class="fas fa-layer-group"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Requests</div>
+                    <div class="stat-value" id="statTotalRequests">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #05CD99 0%, #01B5EF 100%);">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Successful</div>
+                    <div class="stat-value" id="statSuccessful">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #FFB547 0%, #E73BA5 100%);">
+                    <i class="fas fa-coins"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Tokens</div>
+                    <div class="stat-value" id="statTotalTokens">0</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #01B5EF 0%, #4318FF 100%);">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Cost</div>
+                    <div class="stat-value" id="statTotalCost">$0.00</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #EE5D50 0%, #FFB547 100%);">
+                    <i class="fas fa-bolt"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Avg Latency</div>
+                    <div class="stat-value" id="statAvgLatency">0ms</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: linear-gradient(135deg, #7551FF 0%, #E73BA5 100%);">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div class="stat-content">
+                    <div class="stat-label">Agents Used</div>
+                    <div class="stat-value" id="statAgents">0</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filter and Search -->
+        <section class="filter-section">
+            <div class="filter-group">
+                <input type="text" id="searchQuery" placeholder="Search by query..." class="search-input">
+                <select id="filterStatus" class="filter-select">
+                    <option value="all">All Status</option>
+                    <option value="success">Success Only</option>
+                    <option value="failed">Failed Only</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Records Table -->
+        <section class="table-section">
+            <div class="table-header">
+                <h2><i class="fas fa-table"></i> Request History</h2>
+                <div class="table-info" id="tableInfo">Showing 0 records</div>
+            </div>
+            
+            <div class="table-container">
+                <table class="records-table" id="recordsTable">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Query</th>
+                            <th>Agents</th>
+                            <th>Tools</th>
+                            <th>Tokens</th>
+                            <th>Cost</th>
+                            <th>Latency</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recordsTableBody">
+                        <tr class="loading-row">
+                            <td colspan="9">
+                                <div class="loading-spinner">
+                                    <i class="fas fa-spinner fa-spin"></i> Loading records...
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Detail Modal -->
+        <div class="modal" id="detailModal">
+            <div class="modal-overlay" onclick="closeDetailModal()"></div>
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3><i class="fas fa-info-circle"></i> Request Details</h3>
+                    <button class="modal-close" onclick="closeDetailModal()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <!-- Details will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/observability.js') }}"></script>
+</body>
+</html>
