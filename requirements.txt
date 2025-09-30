@@ -2,24 +2,14 @@
 python-dotenv==1.0.0
 
 # LLM / AI APIs
-google-cloud-speech==2.21.0
-google-cloud-aiplatform==1.38.0
 google-generativeai>=0.8.0
-groq>=0.30.0
 
 # Web Framework
 Flask==3.0.0
 Flask-SocketIO==5.3.5
+python-socketio==5.10.0
+python-engineio==4.8.0
 
 # Utilities
 requests==2.31.0
 pydantic==2.5.0
-rich==13.7.0  # For beautiful terminal output
-SpeechRecognition==3.10.4  # For voice input
-
-# Code formatting/validation
-black==23.12.1
-pylint==3.0.3
-
-# Testing
-pytest==7.4.3
