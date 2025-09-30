@@ -950,18 +950,18 @@ class VoiceFirstIDE {
         
         // Create approval UI in conversation (RIGHT PANEL - buttons only)
         const approvalHtml = `
-            <div style="margin-top: 15px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 2px solid var(--accent-blue);">
-                <p style="margin-bottom: 10px; font-weight: bold; color: var(--accent-blue); font-size: 14px;">⚠️ Review Required</p>
-                <p style="margin-bottom: 20px; font-size: 13px; line-height: 1.6;">The AI wants to modify <strong>${filename}</strong>.<br>Review the changes in the <strong>center editor</strong> (red = removed, green = added)</p>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button onclick="window.ideInstance.applyChanges()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #4ec9b0, #89d185); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
-                        ✅ Apply Changes
+            <div style="margin-top: 15px; padding: 24px; background: linear-gradient(135deg, rgba(67, 24, 255, 0.1) 0%, rgba(117, 81, 255, 0.05) 100%); border-radius: 16px; border: 2px solid rgba(67, 24, 255, 0.3); backdrop-filter: blur(10px);">
+                <p style="margin-bottom: 8px; font-weight: 800; color: #7551FF; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">Review Required</p>
+                <p style="margin-bottom: 24px; font-size: 13px; line-height: 1.6; color: #a3aed0;">The AI wants to modify <strong style="color: #ffffff;">${filename}</strong>.<br>Review the changes in the <strong style="color: #ffffff;">center editor</strong> (red = removed, green = added)</p>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button onclick="window.ideInstance.applyChanges()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #05CD99 0%, #01B5EF 100%); border: none; border-radius: 12px; color: white; font-weight: 800; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 8px 16px rgba(5, 205, 153, 0.3); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 24px rgba(5, 205, 153, 0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 16px rgba(5, 205, 153, 0.3)';">
+                        <i class="fas fa-check" style="margin-right: 8px;"></i> Apply Changes
                     </button>
-                    <button onclick="window.ideInstance.rejectChanges()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #f48771, #e5c07b); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
-                        ❌ Reject Changes
+                    <button onclick="window.ideInstance.rejectChanges()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #EE5D50 0%, #FFB547 100%); border: none; border-radius: 12px; color: white; font-weight: 800; cursor: pointer; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 8px 16px rgba(238, 93, 80, 0.3); transition: all 0.3s ease;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 12px 24px rgba(238, 93, 80, 0.4)';" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 8px 16px rgba(238, 93, 80, 0.3)';">
+                        <i class="fas fa-times" style="margin-right: 8px;"></i> Reject Changes
                     </button>
-                    <button onclick="window.ideInstance.showSideBySide()" style="width: 100%; padding: 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 13px;">
-                        🔄 Toggle Side-by-Side
+                    <button onclick="window.ideInstance.showSideBySide()" style="width: 100%; padding: 14px; background: rgba(45, 51, 72, 0.6); border: 2px solid rgba(117, 81, 255, 0.2); border-radius: 12px; color: #a3aed0; font-weight: 700; cursor: pointer; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; transition: all 0.3s ease;" onmouseover="this.style.borderColor='rgba(117, 81, 255, 0.5)'; this.style.background='rgba(45, 51, 72, 0.8)'; this.style.color='#ffffff';" onmouseout="this.style.borderColor='rgba(117, 81, 255, 0.2)'; this.style.background='rgba(45, 51, 72, 0.6)'; this.style.color='#a3aed0';">
+                        <i class="fas fa-columns" style="margin-right: 8px;"></i> Toggle Side-by-Side
                     </button>
                 </div>
             </div>

@@ -28,6 +28,9 @@ from tools.llm_tool import GeminiLLMTool
 # Import logging
 from utils.logger import get_logger, reset_logger
 
+# Import observability
+from utils.observability import get_tracker
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'voice-cursor-ide-secret'
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -262,6 +265,30 @@ def test_stt():
         }), 500
 
 
+@app.route('/observability')
+def observability_dashboard():
+    """Serve the observability dashboard page."""
+    return render_template('observability.html')
+
+
+@app.route('/api/observability/data')
+def get_observability_data():
+    """Get observability data (records and summary stats)."""
+    try:
+        tracker = get_tracker()
+        
+        return jsonify({
+            'success': True,
+            'records': tracker.get_all_records(),
+            'summary': tracker.get_summary_stats()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 # WebSocket event handlers for voice interaction
 @socketio.on('connect')
 def handle_connect():
@@ -272,6 +299,8 @@ def handle_connect():
 @socketio.on('voice_command')
 def handle_voice_command(data):
     """Process voice command through the agent pipeline."""
+    tracker = get_tracker()
+    
     try:
         # Get the audio data or text input
         audio_data = data.get('audio')  # base64 encoded audio
@@ -283,6 +312,10 @@ def handle_voice_command(data):
         logger = get_logger()
         logger.log_pipeline_start(text_input if text_input else "Voice input")
         
+        # Start observability tracking
+        query = text_input if text_input else "Voice input"
+        tracker.start_tracking(query)
+        
         # Emit status update
         emit('agent_status', {
             'stage': 'speech',
@@ -292,8 +325,10 @@ def handle_voice_command(data):
         })
         
         # Stage 1: Speech to Text
+        tracker.track_agent_start('Speech Agent', 'speech')
         speech_agent = SpeechAgent()
-        speech_agent.add_tool(create_stt_tool())
+        stt_tool = create_stt_tool()
+        speech_agent.add_tool(stt_tool)
         
         # Use text input directly if provided (for testing), otherwise process audio
         if text_input:
@@ -306,12 +341,18 @@ def handle_voice_command(data):
         else:
             speech_result = speech_agent.execute(audio_data, context)
             if not speech_result.success:
+                tracker.track_agent_end('Speech Agent', 'speech', [stt_tool.name], 0, False)
+                tracker.end_tracking(success=False, error=speech_result.error)
                 emit('agent_error', {
                     'stage': 'speech',
                     'error': speech_result.error
                 })
                 return
             transcript = speech_result.data
+        
+        # Track speech agent completion
+        tracker.track_tool_usage(stt_tool.name, audio_data or text_input, transcript, 0, 0)
+        tracker.track_agent_end('Speech Agent', 'speech', [stt_tool.name], 0, True)
         
         # Send transcript to client with STT source info
         stt_source = speech_result.metadata.get('source', 'unknown')
@@ -340,6 +381,7 @@ def handle_voice_command(data):
         })
         
         # Stage 2: Security validation
+        tracker.track_agent_start('Security Agent', 'security')
         emit('agent_status', {
             'stage': 'security',
             'agent': 'Security Agent',
@@ -348,10 +390,13 @@ def handle_voice_command(data):
         })
         
         security_agent = SecurityAgent()
-        security_agent.add_tool(SanitizerTool())
+        sanitizer_tool = SanitizerTool()
+        security_agent.add_tool(sanitizer_tool)
         security_result = security_agent.execute(transcript, context)
         
         if not security_result.success:
+            tracker.track_agent_end('Security Agent', 'security', [sanitizer_tool.name], 0, False)
+            tracker.end_tracking(success=False, error=security_result.error)
             emit('agent_error', {
                 'stage': 'security',
                 'error': security_result.error
@@ -359,6 +404,8 @@ def handle_voice_command(data):
             return
         
         sanitized_command = security_result.data
+        tracker.track_tool_usage(sanitizer_tool.name, transcript, sanitized_command, 0, 0)
+        tracker.track_agent_end('Security Agent', 'security', [sanitizer_tool.name], 0, True)
         emit('agent_status', {
             'stage': 'security',
             'agent': 'Security Agent',
@@ -367,6 +414,7 @@ def handle_voice_command(data):
         })
         
         # Stage 3: Planning
+        tracker.track_agent_start('Reasoning Agent', 'reasoning')
         emit('agent_status', {
             'stage': 'reasoning',
             'agent': 'Reasoning Agent',
@@ -375,10 +423,13 @@ def handle_voice_command(data):
         })
         
         reasoning_agent = ReasoningAgent()
-        reasoning_agent.add_tool(GeminiLLMTool())
+        llm_tool_reasoning = GeminiLLMTool()
+        reasoning_agent.add_tool(llm_tool_reasoning)
         reasoning_result = reasoning_agent.execute(sanitized_command, context)
         
         if not reasoning_result.success:
+            tracker.track_agent_end('Reasoning Agent', 'reasoning', [llm_tool_reasoning.name], 0, False)
+            tracker.end_tracking(success=False, error=reasoning_result.error)
             emit('agent_error', {
                 'stage': 'reasoning',
                 'error': reasoning_result.error
@@ -386,6 +437,10 @@ def handle_voice_command(data):
             return
         
         plan = reasoning_result.data
+        # Track reasoning tokens (estimate from plan size)
+        reasoning_tokens = len(str(plan)) // 4
+        tracker.track_tool_usage(llm_tool_reasoning.name, sanitized_command, plan, reasoning_tokens, 0)
+        tracker.track_agent_end('Reasoning Agent', 'reasoning', [llm_tool_reasoning.name], reasoning_tokens, True)
         emit('agent_status', {
             'stage': 'reasoning',
             'agent': 'Reasoning Agent',
@@ -395,6 +450,7 @@ def handle_voice_command(data):
         })
         
         # Stage 4: Code Generation
+        tracker.track_agent_start('Coder Agent', 'coding')
         emit('agent_status', {
             'stage': 'coding',
             'agent': 'Coder Agent',
@@ -403,7 +459,8 @@ def handle_voice_command(data):
         })
         
         coder_agent = CoderAgent()
-        coder_agent.add_tool(GeminiLLMTool())
+        llm_tool_coder = GeminiLLMTool()
+        coder_agent.add_tool(llm_tool_coder)
         
         # Add file context if available
         if context.get('current_file'):
@@ -418,6 +475,8 @@ def handle_voice_command(data):
         coder_result = coder_agent.execute(plan, coder_context)
         
         if not coder_result.success:
+            tracker.track_agent_end('Coder Agent', 'coding', [llm_tool_coder.name], 0, False)
+            tracker.end_tracking(success=False, error=coder_result.error)
             emit('agent_error', {
                 'stage': 'coding',
                 'error': coder_result.error
@@ -425,6 +484,10 @@ def handle_voice_command(data):
             return
         
         code_data = coder_result.data
+        # Track coder tokens (estimate from code size)
+        coder_tokens = len(code_data['code']) // 4
+        tracker.track_tool_usage(llm_tool_coder.name, plan, code_data['code'], coder_tokens, 0)
+        tracker.track_agent_end('Coder Agent', 'coding', [llm_tool_coder.name], coder_tokens, True)
         emit('agent_status', {
             'stage': 'coding',
             'agent': 'Coder Agent',
@@ -443,6 +506,9 @@ def handle_voice_command(data):
         # Log completion
         logger.log_pipeline_end(success=True)
         
+        # End observability tracking
+        tracker.end_tracking(success=True)
+        
         emit('pipeline_complete', {
             'success': True,
             'log_file': logger.get_log_file_path(),
@@ -450,6 +516,9 @@ def handle_voice_command(data):
         })
         
     except Exception as e:
+        # End tracking with error
+        tracker.end_tracking(success=False, error=str(e))
+        
         emit('agent_error', {
             'stage': 'unknown',
             'error': str(e)
@@ -467,5 +536,5 @@ def handle_disconnect():
 if __name__ == '__main__':
     print("🎙️ Voice First IDE Starting...")
     print(f"📁 Workspace: {WORKSPACE_DIR}")
-    print(f"🌐 Open http://localhost:8080 in your browser")
-    socketio.run(app, debug=True, host='0.0.0.0', port=8080)
+    print(f"🌐 Open http://localhost:8081 in your browser")
+    socketio.run(app, debug=True, host='0.0.0.0', port=8081)
