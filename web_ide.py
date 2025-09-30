@@ -19,6 +19,7 @@ from agents.speech_agent import SpeechAgent
 from agents.security_agent import SecurityAgent
 from agents.reasoning_agent import ReasoningAgent
 from agents.coder_agent import CoderAgent
+from agents.analyzer_agent import AnalyzerAgent
 
 # Import tools
 from tools.stt_tool import create_stt_tool
@@ -432,11 +433,12 @@ def handle_voice_command(data):
             'message': f'Code generated ({len(code_data["code"])} characters)'
         })
         
-        # Send the generated code back
+        # Send the generated code back (with suggested filename)
         emit('code_generated', {
             'code': code_data['code'],
             'language': code_data.get('language', 'python'),
             'command': code_data.get('command', ''),
+            'suggested_filename': code_data.get('suggested_filename', None),
             'plan': plan
         })
         
@@ -458,6 +460,148 @@ def handle_voice_command(data):
         traceback.print_exc()
 
 
+@socketio.on('question')
+def handle_question(data):
+    """Handle explanation/question requests without generating files."""
+    try:
+        text = data.get('text', '')
+        current_file = data.get('currentFile')
+        
+        emit('status', {'message': 'Thinking...', 'type': 'info'})
+        
+        # Use LLM to answer the question
+        llm_tool = GeminiLLMTool()
+        
+        prompt = f"""You are a helpful coding assistant. Answer this question clearly and concisely:
+
+Question: {text}
+
+{f"Context: User is looking at file: {current_file}" if current_file else ""}
+
+Provide a clear, helpful answer. If the question is about code, explain it well. Do NOT generate code files unless explicitly asked to create/write/build something."""
+        
+        result = llm_tool.call(prompt)
+        
+        if result.success:
+            # Send response back as a message
+            emit('status', {
+                'message': result.output,
+                'type': 'answer'
+            })
+        else:
+            emit('agent_error', {
+                'stage': 'question',
+                'error': result.error
+            })
+    except Exception as e:
+        emit('agent_error', {
+            'stage': 'question',
+            'error': str(e)
+        })
+        import traceback
+        traceback.print_exc()
+
+
+@socketio.on('analyze_codebase')
+def handle_analyze_codebase(data):
+    """Analyze the current workspace and generate mental model."""
+    try:
+        is_external = data.get('isExternal', False)
+        
+        emit('status', {'message': 'Analyzing codebase...', 'type': 'info'})
+        
+        if is_external:
+            # Handle external folder analysis using client-provided file info
+            file_info = data.get('fileInfo', {})
+            
+            # Create a prompt with the file structure
+            llm_tool = GeminiLLMTool()
+            
+            files = file_info.get('files', [])
+            folder_name = file_info.get('folderName', 'Unknown')
+            
+            # Build file list
+            file_list = '\n'.join([f"- {f['path']} ({f['extension']})" for f in files[:100]])
+            if len(files) > 100:
+                file_list += f"\n... and {len(files) - 100} more files"
+            
+            # Count by extension
+            ext_count = {}
+            for f in files:
+                ext = f['extension']
+                ext_count[ext] = ext_count.get(ext, 0) + 1
+            
+            lang_dist = ', '.join([f"{ext} ({count})" for ext, count in sorted(ext_count.items(), key=lambda x: -x[1])])
+            
+            prompt = f"""You are an expert software architect. Analyze this codebase and provide a comprehensive mental model.
+
+Project: {folder_name}
+Total Files: {len(files)}
+Languages: {lang_dist}
+
+File Structure:
+{file_list}
+
+Generate a comprehensive mental model document in Markdown format that includes:
+
+1. **Project Overview** - What this project appears to be based on file structure
+2. **Architecture** - Likely architecture and design patterns
+3. **Key Components** - Main modules/components based on folder structure
+4. **Technology Stack** - Languages, frameworks, and tools used
+5. **File Organization** - How the codebase is structured
+6. **Entry Points** - Main files to start understanding the code
+7. **Dependencies & Integration** - How components likely interact
+8. **Development Workflow** - Likely dev/build/test processes
+
+Make it clear, concise, and actionable."""
+            
+            result = llm_tool.call(prompt)
+            
+            if result.success:
+                emit('codebase_analysis', {
+                    'analysis': result.output,
+                    'file_count': len(files),
+                    'language_distribution': ext_count
+                })
+            else:
+                emit('agent_error', {
+                    'stage': 'analyzer',
+                    'error': result.error
+                })
+        else:
+            # Handle regular workspace folder analysis
+            analyzer_agent = AnalyzerAgent()
+            analyzer_agent.add_tool(GeminiLLMTool())
+            
+            # Execute analysis
+            analysis_input = {
+                'action': 'analyze',
+                'path': str(WORKSPACE_DIR)
+            }
+            context = {'workspace_path': str(WORKSPACE_DIR)}
+            
+            result = analyzer_agent.execute(analysis_input, context)
+            
+            if result.success:
+                emit('codebase_analysis', {
+                    'analysis': result.data['analysis'],
+                    'file_count': result.data['file_count'],
+                    'language_distribution': result.data['language_distribution']
+                })
+            else:
+                emit('agent_error', {
+                    'stage': 'analyzer',
+                    'error': result.error
+                })
+    except Exception as e:
+        emit('agent_error', {
+            'stage': 'analyzer',
+            'error': str(e)
+        })
+        import traceback
+        traceback.print_exc()
+
+
 @socketio.on('disconnect')
 def handle_disconnect():
     """Handle client disconnection."""
@@ -467,5 +611,5 @@ def handle_disconnect():
 if __name__ == '__main__':
     print("🎙️ Voice First IDE Starting...")
     print(f"📁 Workspace: {WORKSPACE_DIR}")
-    print(f"🌐 Open http://localhost:8080 in your browser")
-    socketio.run(app, debug=True, host='0.0.0.0', port=8080)
+    print(f"🌐 Open http://localhost:8081 in your browser")
+    socketio.run(app, debug=True, host='0.0.0.0', port=8081)

@@ -8,6 +8,8 @@ class VoiceFirstIDE {
         this.isRecording = false;
         this.mediaRecorder = null;
         this.audioChunks = [];
+        this.activeWorkspacePath = null;  // Track user's opened folder
+        this.isExternalWorkspace = false;  // Track if using external folder
         
         this.init();
     }
@@ -75,6 +77,7 @@ class VoiceFirstIDE {
             // Store generated code and metadata
             this.lastGeneratedCode = data.code;
             this.lastGeneratedLanguage = data.language;
+            this.lastSuggestedFilename = data.suggested_filename;
             
             // Check if we're editing an existing file or creating new
             // If editor has content and a file is open, it's an edit
@@ -87,13 +90,20 @@ class VoiceFirstIDE {
                 this.showDiffApproval(data.code);
             } else {
                 // Creating new file - show in editor immediately
-                this.createAndShowNewFile(data.code, data.language);
+                this.createAndShowNewFile(data.code, data.language, data.suggested_filename);
             }
         });
         
         this.socket.on('pipeline_complete', (data) => {
             this.addMessage('assistant', '🎉 Pipeline complete! Code is ready.');
             setTimeout(() => this.resetAgentStatus(), 3000);
+        });
+        
+        this.socket.on('codebase_analysis', (data) => {
+            this.addMessage('assistant', '🧠 Codebase analysis complete!');
+            
+            // Create and save the mental model markdown file
+            this.createAnalysisFile(data.analysis, data.file_count, data.language_distribution);
         });
     }
     
@@ -414,13 +424,22 @@ class VoiceFirstIDE {
                 </div>
             `;
         });
+        
+        // Analyze codebase
+        document.getElementById('analyzeCodebase').addEventListener('click', () => {
+            this.analyzeCodebase();
+        });
     }
     
     async startRecording() {
         try {
-            // Use Web Speech API (built into Chrome/Edge/Safari)
-            // This provides the best UX - instant transcription in the browser
-            // Backend Google Cloud STT is used as validation/enhancement
+            // CURRENT IMPLEMENTATION: Using Browser's Web Speech API
+            // This transcribes audio in the browser and sends only TEXT to the backend
+            // 
+            // TO USE GOOGLE CLOUD STT: See GOOGLE_STT_SETUP.md for instructions
+            // You would need to capture raw audio with MediaRecorder and send audio bytes to backend
+            // 
+            // For now, this provides instant transcription without backend setup
             
             if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
                 this.addMessage('assistant', 
@@ -587,6 +606,36 @@ class VoiceFirstIDE {
     }
     
     processVoiceCommand(transcript) {
+        // Check if this is a codebase analysis request
+        const lowerText = transcript.toLowerCase();
+        const isAnalysisRequest = 
+            lowerText.includes('analyze codebase') ||
+            lowerText.includes('analyse codebase') ||
+            lowerText.includes('explain codebase') ||
+            lowerText.includes('explain the codebase') ||
+            lowerText.includes('mental model') ||
+            lowerText.includes('understand the code') ||
+            lowerText.includes('understand codebase') ||
+            lowerText.includes('overview of the code') ||
+            lowerText.includes('show me the codebase');
+        
+        if (isAnalysisRequest) {
+            this.analyzeCodebase();
+            return;
+        }
+        
+        // Check if this is a code generation request or just a question
+        const isCodeRequest = this.isCodeGenerationRequest(transcript);
+        
+        if (!isCodeRequest) {
+            // For non-code requests (explanations, questions), just respond
+            this.socket.emit('question', {
+                text: transcript,
+                currentFile: this.currentFile ? this.currentFile.path : null
+            });
+            return;
+        }
+        
         // Get current file context if available
         const context = {};
         if (this.currentFile) {
@@ -594,6 +643,10 @@ class VoiceFirstIDE {
             context.language = this.currentFile.language;
             context.file_content = this.editor.getValue();
         }
+        
+        // Add workspace info for external folders
+        context.is_external_workspace = this.isExternalWorkspace;
+        context.active_workspace = this.activeWorkspacePath;
         
         // Send to backend via WebSocket
         this.socket.emit('voice_command', {
@@ -611,6 +664,39 @@ class VoiceFirstIDE {
         // Clear input
         input.value = '';
         
+        // Show user message first
+        this.addMessage('user', text);
+        
+        // Check if this is a codebase analysis request
+        const lowerText = text.toLowerCase();
+        const isAnalysisRequest = 
+            lowerText.includes('analyze codebase') ||
+            lowerText.includes('analyse codebase') ||
+            lowerText.includes('explain codebase') ||
+            lowerText.includes('explain the codebase') ||
+            lowerText.includes('mental model') ||
+            lowerText.includes('understand the code') ||
+            lowerText.includes('understand codebase') ||
+            lowerText.includes('overview of the code') ||
+            lowerText.includes('show me the codebase');
+        
+        if (isAnalysisRequest) {
+            this.analyzeCodebase();
+            return;
+        }
+        
+        // Check if this is a code generation request or just a question
+        const isCodeRequest = this.isCodeGenerationRequest(text);
+        
+        if (!isCodeRequest) {
+            // For non-code requests (explanations, questions), just respond, don't generate files
+            this.socket.emit('question', {
+                text: text,
+                currentFile: this.currentFile ? this.currentFile.path : null
+            });
+            return;
+        }
+        
         // Get current file context if available
         const context = {};
         if (this.currentFile) {
@@ -618,6 +704,10 @@ class VoiceFirstIDE {
             context.language = this.currentFile.language;
             context.file_content = this.editor.getValue();
         }
+        
+        // Add workspace info for external folders
+        context.is_external_workspace = this.isExternalWorkspace;
+        context.active_workspace = this.activeWorkspacePath;
         
         // Send to backend via WebSocket
         this.socket.emit('voice_command', {
@@ -814,11 +904,25 @@ class VoiceFirstIDE {
         // Store file map for reading files later
         this.externalFiles = fileMap;
         this.fileTree = fileTree;
+        this.isExternalWorkspace = true;
+        
+        // Extract workspace path from first file
+        if (files.length > 0) {
+            const firstFile = files[0];
+            const fullPath = firstFile.webkitRelativePath || firstFile.name;
+            const folderName = fullPath.split('/')[0];
+            this.activeWorkspacePath = folderName;  // This is relative, but we'll track it
+        }
         
         // Render the tree
         this.renderFileTree(fileTree);
         
-        this.addMessage('assistant', `✅ Loaded ${files.length} files from external folder!`);
+        this.addMessage('assistant', `✅ Loaded ${files.length} files from external folder: <strong>${this.activeWorkspacePath || 'Unknown'}</strong>`);
+        this.addMessage('assistant', 
+            `<div style="padding: 10px; background: rgba(0, 122, 204, 0.1); border-radius: 6px; border-left: 3px solid var(--accent-blue); margin-top: 10px;">
+                <p style="font-size: 12px; margin-bottom: 5px;"><strong>💡 Tip:</strong> Click the 🧠 brain icon to analyze this codebase!</p>
+            </div>`
+        );
     }
     
     async handleFileSelection(file) {
@@ -869,20 +973,32 @@ class VoiceFirstIDE {
         }
     }
     
-    async createAndShowNewFile(code, language) {
-        // Generate filename based on language and timestamp
-        const ext = {
-            'python': 'py',
-            'javascript': 'js',
-            'typescript': 'ts',
-            'html': 'html',
-            'css': 'css',
-            'java': 'java',
-            'go': 'go'
-        }[language] || 'txt';
+    async createAndShowNewFile(code, language, suggestedFilename = null) {
+        // Use suggested filename if available, otherwise generate a generic one
+        let filename;
+        if (suggestedFilename) {
+            filename = suggestedFilename;
+        } else {
+            const ext = {
+                'python': 'py',
+                'javascript': 'js',
+                'typescript': 'ts',
+                'html': 'html',
+                'css': 'css',
+                'java': 'java',
+                'go': 'go'
+            }[language] || 'txt';
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            filename = `generated_${timestamp}.${ext}`;
+        }
         
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        const filename = `generated_${timestamp}.${ext}`;
+        // For external workspaces, we can't create files on the backend
+        // Instead, offer to download or copy to clipboard
+        if (this.isExternalWorkspace) {
+            this.showExternalFileCreationDialog(filename, code, language);
+            return;
+        }
         
         this.addMessage('assistant', `🆕 Creating new file: <strong>${filename}</strong>`);
         
@@ -950,18 +1066,64 @@ class VoiceFirstIDE {
         
         // Create approval UI in conversation (RIGHT PANEL - buttons only)
         const approvalHtml = `
-            <div style="margin-top: 15px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 2px solid var(--accent-blue);">
-                <p style="margin-bottom: 10px; font-weight: bold; color: var(--accent-blue); font-size: 14px;">⚠️ Review Required</p>
-                <p style="margin-bottom: 20px; font-size: 13px; line-height: 1.6;">The AI wants to modify <strong>${filename}</strong>.<br>Review the changes in the <strong>center editor</strong> (red = removed, green = added)</p>
+            <div style="margin-top: 15px; padding: 20px; background: rgba(45, 45, 48, 0.6); border-radius: 12px; border: 1px solid rgba(0, 122, 204, 0.3); backdrop-filter: blur(10px);">
+                <p style="margin-bottom: 10px; font-weight: 600; color: var(--accent-blue); font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-code-compare"></i> Review Changes
+                </p>
+                <p style="margin-bottom: 20px; font-size: 13px; line-height: 1.6; color: var(--text-secondary);">Review the diff in the center editor and approve or reject the changes.</p>
                 <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <button onclick="window.ideInstance.applyChanges()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #4ec9b0, #89d185); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
-                        ✅ Apply Changes
+                    <button onclick="window.ideInstance.applyChanges()" style="
+                        width: 100%; 
+                        padding: 12px 16px; 
+                        background: rgba(78, 201, 176, 0.15); 
+                        border: 1.5px solid rgba(78, 201, 176, 0.4); 
+                        border-radius: 8px; 
+                        color: #4ec9b0; 
+                        font-weight: 600; 
+                        cursor: pointer; 
+                        font-size: 14px;
+                        transition: all 0.2s ease;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                    " onmouseover="this.style.background='rgba(78, 201, 176, 0.25)'; this.style.borderColor='rgba(78, 201, 176, 0.6)';" onmouseout="this.style.background='rgba(78, 201, 176, 0.15)'; this.style.borderColor='rgba(78, 201, 176, 0.4)';">
+                        <i class="fas fa-check"></i> Apply Changes
                     </button>
-                    <button onclick="window.ideInstance.rejectChanges()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #f48771, #e5c07b); border: none; border-radius: 6px; color: white; font-weight: bold; cursor: pointer; font-size: 14px;">
-                        ❌ Reject Changes
+                    <button onclick="window.ideInstance.rejectChanges()" style="
+                        width: 100%; 
+                        padding: 12px 16px; 
+                        background: rgba(244, 135, 113, 0.15); 
+                        border: 1.5px solid rgba(244, 135, 113, 0.4); 
+                        border-radius: 8px; 
+                        color: #f48771; 
+                        font-weight: 600; 
+                        cursor: pointer; 
+                        font-size: 14px;
+                        transition: all 0.2s ease;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                    " onmouseover="this.style.background='rgba(244, 135, 113, 0.25)'; this.style.borderColor='rgba(244, 135, 113, 0.6)';" onmouseout="this.style.background='rgba(244, 135, 113, 0.15)'; this.style.borderColor='rgba(244, 135, 113, 0.4)';">
+                        <i class="fas fa-times"></i> Reject Changes
                     </button>
-                    <button onclick="window.ideInstance.showSideBySide()" style="width: 100%; padding: 12px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 13px;">
-                        🔄 Toggle Side-by-Side
+                    <button onclick="window.ideInstance.showSideBySide()" style="
+                        width: 100%; 
+                        padding: 10px 16px; 
+                        background: rgba(60, 60, 60, 0.3); 
+                        border: 1px solid rgba(62, 62, 66, 0.5); 
+                        border-radius: 8px; 
+                        color: var(--text-secondary); 
+                        cursor: pointer; 
+                        font-size: 13px;
+                        transition: all 0.2s ease;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 8px;
+                    " onmouseover="this.style.background='rgba(60, 60, 60, 0.5)'; this.style.color='var(--text-primary)';" onmouseout="this.style.background='rgba(60, 60, 60, 0.3)'; this.style.color='var(--text-secondary)';">
+                        <i class="fas fa-arrows-left-right"></i> Toggle View
                     </button>
                 </div>
             </div>
@@ -1087,6 +1249,349 @@ class VoiceFirstIDE {
         });
         
         this.isDiffMode = false;
+    }
+    
+    isCodeGenerationRequest(text) {
+        // Determine if user wants code generation or just an explanation/question
+        const lowerText = text.toLowerCase();
+        
+        // Code generation keywords
+        const codeKeywords = [
+            'create', 'make', 'build', 'write', 'generate', 'add', 'implement',
+            'develop', 'code', 'function', 'class', 'module', 'script',
+            'refactor', 'fix bug', 'modify', 'update', 'change', 'edit',
+            'insert', 'append', 'prepend'
+        ];
+        
+        // Question/explanation keywords
+        const questionKeywords = [
+            'explain', 'what is', 'what does', 'how does', 'why',
+            'can you explain', 'tell me', 'describe', 'what are',
+            'help me understand', 'show me how', 'teach me',
+            'documentation', 'docs', 'meaning'
+        ];
+        
+        // Check for question patterns first (they take precedence)
+        const hasQuestionMark = lowerText.includes('?');
+        const startsWithQuestion = /^(what|why|how|when|where|who|which|can you|could you|would you|do you|does it|is it|are there)\b/.test(lowerText);
+        const hasQuestionKeyword = questionKeywords.some(kw => lowerText.includes(kw));
+        
+        if (hasQuestionMark || startsWithQuestion || hasQuestionKeyword) {
+            // Even if it has code keywords, if it's a question, treat as explanation request
+            return false;
+        }
+        
+        // Check for code generation keywords
+        const hasCodeKeyword = codeKeywords.some(kw => lowerText.includes(kw));
+        
+        return hasCodeKeyword;
+    }
+    
+    async analyzeCodebase() {
+        this.addMessage('assistant', 
+            `<div style="padding: 15px; background: linear-gradient(135deg, rgba(78, 201, 176, 0.1), rgba(0, 122, 204, 0.1)); border-radius: 8px; border-left: 3px solid var(--accent-green);">
+                <p style="font-weight: bold; margin-bottom: 8px;">🧠 Analyzing Codebase...</p>
+                <p style="font-size: 12px; color: var(--text-secondary);">This may take a moment. I'm scanning your files and generating a mental model.</p>
+            </div>`
+        );
+        
+        // For external folders, we need to analyze client-side since we can't access them from backend
+        if (this.isExternalWorkspace && this.externalFiles) {
+            // Gather file info from client-side
+            const fileInfo = {
+                files: [],
+                totalFiles: this.externalFiles.size,
+                folderName: this.activeWorkspacePath
+            };
+            
+            // Collect file paths and basic info
+            for (let [path, file] of this.externalFiles) {
+                fileInfo.files.push({
+                    path: path,
+                    name: file.name,
+                    size: file.size,
+                    extension: '.' + file.name.split('.').pop().toLowerCase()
+                });
+            }
+            
+            // Request analysis with external folder data
+            this.socket.emit('analyze_codebase', {
+                isExternal: true,
+                fileInfo: fileInfo
+            });
+        } else {
+            // Request analysis from backend for workspace folder
+            this.socket.emit('analyze_codebase', {
+                isExternal: false
+            });
+        }
+    }
+    
+    showExternalFileCreationDialog(filename, code, language) {
+        // Show the code in the editor first
+        this.editor.setValue(code);
+        monaco.editor.setModelLanguage(this.editor.getModel(), language);
+        
+        // Show editor
+        document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('editorContainer').style.display = 'block';
+        
+        // Update current file
+        this.currentFile = {
+            path: filename,
+            language: language,
+            content: code,
+            isExternal: true,
+            isUnsaved: true
+        };
+        
+        // Update tab
+        this.updateTab(filename);
+        
+        // Show save options
+        this.addMessage('assistant', 
+            `<div style="padding: 15px; background: rgba(0, 122, 204, 0.1); border-radius: 8px; border: 2px solid var(--accent-blue);">
+                <p style="font-weight: bold; color: var(--accent-blue); margin-bottom: 10px;">💾 Save Generated File</p>
+                <p style="margin-bottom: 15px; font-size: 13px;">Since you're working with an external folder, I've opened the code in the editor. Choose how to save it:</p>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button onclick="window.ideInstance.downloadFile('${filename}')" style="
+                        padding: 10px 14px; 
+                        background: rgba(78, 201, 176, 0.15); 
+                        border: 1.5px solid rgba(78, 201, 176, 0.4); 
+                        border-radius: 6px; 
+                        color: #4ec9b0; 
+                        font-weight: 600; 
+                        cursor: pointer; 
+                        font-size: 13px;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                    " onmouseover="this.style.background='rgba(78, 201, 176, 0.25)';" onmouseout="this.style.background='rgba(78, 201, 176, 0.15)';">
+                        <i class="fas fa-download"></i> Download as ${filename}
+                    </button>
+                    <button onclick="window.ideInstance.copyToClipboard()" style="
+                        padding: 10px 14px; 
+                        background: rgba(0, 122, 204, 0.15); 
+                        border: 1.5px solid rgba(0, 122, 204, 0.4); 
+                        border-radius: 6px; 
+                        color: #007acc; 
+                        font-weight: 600; 
+                        cursor: pointer; 
+                        font-size: 13px;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                    " onmouseover="this.style.background='rgba(0, 122, 204, 0.25)';" onmouseout="this.style.background='rgba(0, 122, 204, 0.15)';">
+                        <i class="fas fa-copy"></i> Copy to Clipboard
+                    </button>
+                </div>
+                <p style="margin-top: 10px; font-size: 11px; color: var(--text-secondary); font-style: italic;">💡 Tip: After downloading, manually place it in your project folder</p>
+            </div>`
+        );
+    }
+    
+    downloadFile(filename) {
+        const content = this.editor.getValue();
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        this.addMessage('assistant', `✅ File <strong>${filename}</strong> downloaded! Place it in your project folder.`);
+    }
+    
+    async copyToClipboard() {
+        const content = this.editor.getValue();
+        try {
+            await navigator.clipboard.writeText(content);
+            this.addMessage('assistant', `✅ Code copied to clipboard! You can paste it into your project.`);
+        } catch (err) {
+            this.addMessage('assistant', `❌ Failed to copy to clipboard. Please select and copy manually.`);
+        }
+    }
+    
+    async createAnalysisFile(analysisContent, fileCount, languageDistribution) {
+        const filename = 'CODEBASE_MENTAL_MODEL.md';
+        
+        // Add metadata header
+        const header = `# Codebase Mental Model\n\n**Generated:** ${new Date().toLocaleString()}  \n**Files Analyzed:** ${fileCount}  \n**Languages:** ${Object.entries(languageDistribution).map(([ext, count]) => `${ext} (${count})`).join(', ')}\n\n---\n\n`;
+        
+        const fullContent = header + analysisContent;
+        
+        // Always show in editor first for review (human-in-the-loop)
+        this.editor.setValue(fullContent);
+        monaco.editor.setModelLanguage(this.editor.getModel(), 'markdown');
+        
+        document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('editorContainer').style.display = 'block';
+        
+        // Store for later use
+        this.pendingAnalysis = {
+            filename: filename,
+            content: fullContent,
+            fileCount: fileCount,
+            languageDistribution: languageDistribution
+        };
+        
+        this.currentFile = {
+            path: filename,
+            language: 'markdown',
+            content: fullContent,
+            isExternal: this.isExternalWorkspace,
+            isUnsaved: true,
+            isPendingApproval: true
+        };
+        
+        this.updateTab(filename + ' *');
+        
+        // For external workspaces, offer download
+        if (this.isExternalWorkspace) {
+            this.addMessage('assistant', 
+                `<div style="padding: 15px; background: rgba(78, 201, 176, 0.1); border-radius: 8px; border: 2px solid var(--accent-green);">
+                    <p style="font-weight: bold; color: var(--accent-green); margin-bottom: 10px;">✅ Analysis Complete!</p>
+                    <p style="margin-bottom: 10px; font-size: 13px;">I've opened the mental model in the editor for your review.</p>
+                    <div style="padding: 12px; background: rgba(255, 193, 7, 0.1); border-left: 3px solid #ffc107; border-radius: 6px; margin-bottom: 12px;">
+                        <p style="font-size: 12px; color: #ffc107; margin: 0;">⚠️ <strong>Human-in-the-Loop:</strong> Please review the analysis before saving.</p>
+                    </div>
+                    <button onclick="window.ideInstance.downloadFile('${filename}')" style="
+                        padding: 10px 14px; 
+                        background: rgba(78, 201, 176, 0.15); 
+                        border: 1.5px solid rgba(78, 201, 176, 0.4); 
+                        border-radius: 6px; 
+                        color: #4ec9b0; 
+                        font-weight: 600; 
+                        cursor: pointer; 
+                        font-size: 13px;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                    " onmouseover="this.style.background='rgba(78, 201, 176, 0.25)';" onmouseout="this.style.background='rgba(78, 201, 176, 0.15)';">
+                        <i class="fas fa-download"></i> Download ${filename}
+                    </button>
+                    <p style="margin-top: 10px; font-size: 11px; color: var(--text-secondary); font-style: italic;">💡 Place it in your project's root directory after review</p>
+                </div>`
+            );
+        } else {
+            // For workspace folders, show approval dialog
+            this.addMessage('assistant', 
+                `<div style="padding: 15px; background: rgba(78, 201, 176, 0.1); border-radius: 8px; border: 2px solid var(--accent-green);">
+                    <p style="font-weight: bold; color: var(--accent-green); margin-bottom: 10px;">✅ Analysis Complete!</p>
+                    <p style="margin-bottom: 10px; font-size: 13px;">I've opened the mental model in the editor for your review.</p>
+                    <div style="padding: 12px; background: rgba(255, 193, 7, 0.1); border-left: 3px solid #ffc107; border-radius: 6px; margin-bottom: 12px;">
+                        <p style="font-size: 12px; color: #ffc107; margin: 0;">⚠️ <strong>Human-in-the-Loop:</strong> Please review the analysis before saving to your workspace.</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button onclick="window.ideInstance.approveAndSaveAnalysis()" style="
+                            padding: 10px 16px; 
+                            background: rgba(78, 201, 176, 0.2); 
+                            border: 1.5px solid rgba(78, 201, 176, 0.5); 
+                            border-radius: 6px; 
+                            color: #4ec9b0; 
+                            font-weight: 600; 
+                            cursor: pointer; 
+                            font-size: 13px;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                        " onmouseover="this.style.background='rgba(78, 201, 176, 0.3)';" onmouseout="this.style.background='rgba(78, 201, 176, 0.2)';">
+                            <i class="fas fa-check"></i> Approve & Save to Workspace
+                        </button>
+                        <button onclick="window.ideInstance.rejectAnalysis()" style="
+                            padding: 10px 16px; 
+                            background: rgba(255, 75, 75, 0.15); 
+                            border: 1.5px solid rgba(255, 75, 75, 0.4); 
+                            border-radius: 6px; 
+                            color: #ff4b4b; 
+                            font-weight: 600; 
+                            cursor: pointer; 
+                            font-size: 13px;
+                            display: flex;
+                            align-items: center;
+                            gap: 6px;
+                        " onmouseover="this.style.background='rgba(255, 75, 75, 0.25)';" onmouseout="this.style.background='rgba(255, 75, 75, 0.15)';">
+                            <i class="fas fa-times"></i> Discard
+                        </button>
+                    </div>
+                    <p style="margin-top: 10px; font-size: 11px; color: var(--text-secondary); font-style: italic;">💡 You can edit the analysis in the editor before saving</p>
+                </div>`
+            );
+        }
+    }
+    
+    async approveAndSaveAnalysis() {
+        if (!this.pendingAnalysis) {
+            this.addMessage('assistant', '❌ No pending analysis to save.');
+            return;
+        }
+        
+        const { filename, fileCount, languageDistribution } = this.pendingAnalysis;
+        const content = this.editor.getValue();  // Get possibly edited content
+        
+        this.addMessage('assistant', `💾 Saving <strong>${filename}</strong> to workspace...`);
+        
+        try {
+            // Create the file
+            const response = await fetch('/api/file/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ path: filename })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success || result.error?.includes('already exists')) {
+                // Write the analysis to the file
+                const writeResponse = await fetch('/api/file/write', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        path: filename,
+                        content: content
+                    })
+                });
+                
+                const writeResult = await writeResponse.json();
+                
+                if (writeResult.success) {
+                    this.addMessage('assistant', 
+                        `✅ <strong>${filename}</strong> saved successfully to your workspace!`
+                    );
+                    
+                    // Clear pending state
+                    this.pendingAnalysis = null;
+                    this.currentFile.isPendingApproval = false;
+                    this.currentFile.isUnsaved = false;
+                    this.updateTab(filename);
+                    
+                    // Refresh file tree to show the new file
+                    await this.loadFileTree();
+                } else {
+                    this.addMessage('assistant', `❌ Failed to save: ${writeResult.error}`);
+                }
+            } else {
+                this.addMessage('assistant', `❌ Failed to create file: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Failed to save analysis file:', error);
+            this.addMessage('assistant', `❌ Failed to save analysis file: ${error.message}`);
+        }
+    }
+    
+    rejectAnalysis() {
+        if (!this.pendingAnalysis) {
+            return;
+        }
+        
+        this.addMessage('assistant', '🗑️ Analysis discarded. The file was not saved.');
+        this.pendingAnalysis = null;
+        
+        // Close the editor or show welcome screen
+        document.getElementById('editorContainer').style.display = 'none';
+        document.getElementById('welcomeScreen').style.display = 'flex';
+        this.currentFile = null;
     }
 }
 

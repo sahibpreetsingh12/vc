@@ -78,12 +78,16 @@ class CoderAgent(Agent):
                 if format_result.success:
                     generated_code = format_result.output
             
+            # Generate a meaningful filename from the command
+            suggested_filename = self._generate_filename(command, context.get("language", "python") if context else "python")
+            
             return AgentResult(
                 success=True,
                 data={
                     "code": generated_code,
                     "language": context.get("language", "python") if context else "python",
-                    "command": command
+                    "command": command,
+                    "suggested_filename": suggested_filename
                 },
                 metadata={
                     "agent": self.name,
@@ -156,3 +160,73 @@ IMPORTANT: Return ONLY the code, no explanations, no markdown formatting, just p
     def _format_steps(self, steps: list) -> str:
         """Format steps for the prompt."""
         return "\n".join(f"{i+1}. {step}" for i, step in enumerate(steps))
+    
+    def _generate_filename(self, command: str, language: str) -> str:
+        """Generate a concise, meaningful filename from the command."""
+        import re
+        
+        # Extension mapping
+        ext_map = {
+            'python': 'py',
+            'javascript': 'js',
+            'typescript': 'ts',
+            'html': 'html',
+            'css': 'css',
+            'java': 'java',
+            'go': 'go',
+            'rust': 'rs',
+            'cpp': 'cpp',
+            'c': 'c'
+        }
+        ext = ext_map.get(language, 'txt')
+        
+        # Extract key nouns/concepts from command
+        command_lower = command.lower()
+        
+        # Common patterns to extract filename
+        patterns = [
+            # "create a user authentication module" -> "user_auth"
+            r'create\s+(?:a\s+)?(?:an\s+)?(.+?)\s+(?:module|class|function|script|file|component)',
+            # "build a calculator" -> "calculator"
+            r'build\s+(?:a\s+)?(?:an\s+)?(.+?)(?:\s+that|\s+to|\s+which|$)',
+            # "make a todo list" -> "todo_list"
+            r'make\s+(?:a\s+)?(?:an\s+)?(.+?)(?:\s+that|\s+to|\s+which|$)',
+            # "write a function to process data" -> "process_data"
+            r'write\s+(?:a\s+)?(?:an\s+)?(?:function|method|class)\s+to\s+(.+?)(?:\s+that|\s+which|$)',
+            # "add a login feature" -> "login"
+            r'add\s+(?:a\s+)?(?:an\s+)?(.+?)\s+(?:feature|functionality|capability)',
+            # "implement user registration" -> "user_registration"
+            r'implement\s+(.+?)(?:\s+that|\s+to|\s+which|$)',
+            # Generic: extract main subject
+            r'(?:for|to)\s+(.+?)(?:\s+that|\s+to|\s+which|$)',
+        ]
+        
+        filename = None
+        for pattern in patterns:
+            match = re.search(pattern, command_lower)
+            if match:
+                filename = match.group(1).strip()
+                break
+        
+        # If no pattern matched, extract key nouns
+        if not filename:
+            # Remove common words and extract remaining words
+            stop_words = {'a', 'an', 'the', 'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with', 'from', 'that', 'which', 'this', 'these', 'those', 'i', 'you', 'we', 'they', 'create', 'make', 'build', 'write', 'add', 'implement', 'develop'}
+            words = re.findall(r'\w+', command_lower)
+            key_words = [w for w in words if w not in stop_words and len(w) > 2]
+            filename = '_'.join(key_words[:3]) if key_words else 'code'
+        
+        # Clean up the filename
+        filename = re.sub(r'[^a-z0-9_]+', '_', filename)
+        filename = re.sub(r'_+', '_', filename)  # Remove multiple underscores
+        filename = filename.strip('_')  # Remove leading/trailing underscores
+        
+        # Limit length
+        if len(filename) > 30:
+            filename = filename[:30].rstrip('_')
+        
+        # If empty, use default
+        if not filename:
+            filename = 'generated_code'
+        
+        return f"{filename}.{ext}"
