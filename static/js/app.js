@@ -523,13 +523,14 @@ class VoiceFirstIDE {
             };
             
             this.recognition.onend = () => {
-                // Only process if we have a transcript and user didn't manually stop
-                if (this.currentTranscript.trim() && this.isRecording) {
-                    this.processFinalTranscript();
+                // If still recording flag is set, restart to keep continuous
+                if (this.isRecording) {
+                    try {
+                        this.recognition.start();
+                    } catch (e) {
+                        console.log('Recognition restart error:', e);
+                    }
                 }
-                
-                this.isRecording = false;
-                document.getElementById('micButton').classList.remove('recording');
             };
             
             // Start recognition
@@ -545,9 +546,7 @@ class VoiceFirstIDE {
     
     stopRecording() {
         if (this.recognition && this.isRecording) {
-            this.isRecording = false;  // Set flag before stopping
-            this.recognition.stop();
-            document.getElementById('micButton').classList.remove('recording');
+            this.isRecording = false;  // Set flag FIRST to prevent onend restart
             
             // Remove interim message if exists
             const interimMsg = document.querySelector('.message.interim');
@@ -555,11 +554,13 @@ class VoiceFirstIDE {
                 interimMsg.remove();
             }
             
-            // Process the final transcript
+            // Stop recognition
+            this.recognition.stop();
+            document.getElementById('micButton').classList.remove('recording');
+            
+            // Process the final transcript if we have any
             if (this.currentTranscript && this.currentTranscript.trim()) {
                 this.processFinalTranscript();
-            } else {
-                this.addMessage('assistant', '❌ No speech detected. Please try again.');
             }
         }
     }
